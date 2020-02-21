@@ -1,0 +1,16 @@
+适用于2示例
+角点检测一般流程（Python）
+OpenCV3支持SIFT/SURF/ORB/KAZE/FAST/BRISK/AKAZE等角点检测，均为Feature2D的子类，
+一般使用流程如下： 检测算子创建检测提取描述子匹配
+创建
+给算子起的名字 = cv2.算子名_create()
+e.g. orb = cv2.orb_create();
+检测
+内容为KeyPoints的vector向量 = 上一步给算子起的名字.detect(图片)
+e.g. keypoints = orb.detect( img, None )
+描述子
+上一步给算子起的名字.compute(图片, 上一步中得到的KeyPoints向量)
+e.g. keypoints, descriptors = orb.compute( img, keypoints )
+匹配
+BFMatcher类对象.match(描述子1, 描述子2, 内容为DMatch的向量);
+e.g. matches = matcher.match(descriptors_1, descriptors_2)

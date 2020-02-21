@@ -1,0 +1,72 @@
+一、局部阈值分割——基于阈值的方法：
+    当一块黑色背景里放上硬币时，硬币的颜色由灰色至白色，传统的阈值分割会使灰色的变成黑色。局域阈值分割就很好地解决了这个问题
+    把一大块图像分成许多小块，当直方图的两个波峰 d = |m₁(T)-m₂(T)|很小时，认定此小格里没有目标
+    自适应阈值分割：
+        在图像阈值化操作中，更关注的是从二值化图像中，分离目标区域和背景区域，但是仅仅通过
+        在上一节中讲解的设定固定阈值很难达到理想的分割效果。而自适应阈值则，是根据像素的邻域块
+        的像素值分布来确定该像素位置上的二值化阈值。
+        dst = cv.adaptiveThreshold( src, maxValue, adaptiveMethod, thresholdType, blockSize, C[,dst] )
+        src : InputArray类型的src，输入图像，填单通道，单8位浮点类型Mat即可。
+        maxValue : 阈值化后的最大值；
+        adaptiveMethod ：计算阈值所采用的算法，有两个取值，分别为 ADAPTIVE_THRESH_MEAN_C 和ADAPTIVE_THRESH_GAUSSIAN_C；
+                        ADAPTIVE_THRESH_MEAN_C，为局部邻域块的平均值，该算法是先求出块中的均值，再减去常数C。
+                        ADAPTIVE_THRESH_GAUSSIAN_C，为局部邻域块的高斯加权和。该算法是在区域中(x, y)周围的像素
+                                                    根据高斯函数按照他们离中心点的距离进行加权计算，再减去常数C。
+        thresholdType : 指定阈值类型。可选择THRESH_BINARY或者THRESH_BINARY_INV两种。
+                     （即二进制阈值或反二进制阈值）。
+        blockSize : 邻域块大小；3, 5, 7, ...
+二、分水岭算法分割——基于区域的方法：
+    假设我们在盆地的最小值点，打一个洞，然后往盆地里面注水，并阻止两个盆地的水汇集，
+    我们会在两个盆地的水汇集的时刻，在交接的边缘线上(也即分水岭线)，建一个坝，来阻止
+    两个盆地的水汇集成一片水域。这样图像就被分成2个像素集，一个是注水盆地像素集，一
+    个是分水岭线像素集。
+    灰度图的几何解释：
+        · 局部最小值点，该点对应一个盆地的最低点，当我们在盆地里滴一滴水的时候，由于重力作用，
+        水最终会汇聚到该点。注意：可能存在一个最小值面，该平面内的都是最小值点。
+        · 盆地的其它位置点，该位置滴的水滴会汇聚到局部最小点。
+        · 盆地的边缘点，是该盆地和其它盆地交接点，在该点滴一滴水，会等概率的流向任何一个盆地。
+    分水岭算法的过分割问题：
+        由于噪声点或者其它干扰因素的存在，使用分水岭算法常常存在过度分割的现象，这是因为很多很小的局部极值点的存在
+        为了解决过度分割的问题，可以使用基于标记(mark)图像的分水岭算法，就是指定mark
+        图像，在这个区域的洪水淹没过程中，水平面都是从定义的marker开始的，这样可以避
+        免一些很小的噪声极值区域的分割。
+        markers = cv.watershed( image, markers )
+        image : 三通道彩色图像；
+        markers ：记号点(种子点)，每一个记号需要有不同的编号；
+
+
+三、基于边缘轮廓的分割
+    基本思想：
+        · 可以在边缘检测的基础上，基于闭合边缘构建分割后的结果
+        · 在分割前需要进行边缘检测
+        · OpenCV提供几种基于边缘轮廓的分割方法，包括简单的基于封闭曲线的方法，以及基于活
+        动廓线(active contour的方法)。本文只介绍前者
+        · 该算法基于Suzuki, S. 1985的方法，相对古老，但OpenCV基于此提供了关于图像描述的支
+        持，比较好用
+    opencv相关函数:
+        · 找到目标轮廓
+            image, contours, hierarchy = cv.findContours( image, mode, method[, contours[, hierarchy[,offset]]] )
+                image : 单通道图像矩阵，可以是灰度图，但更常用的是经过边缘检测算子处理后的二值图像；
+                contours ：定义为“vector<vector<Point>> contours”，是一个轮廓列表；
+                hierarchy : 存在嵌套轮廓时，分别为第i个轮廓的后一个轮廓、前一个轮廓、父轮廓、内嵌轮廓的索引编号；
+                mode : 定义轮廓的检索模式, 包括CV_RETR_EXTERNAL只检测最外围轮廓， CV_RETR_LIST检测所有轮廓，但不建立等级关系等；
+                method : 包括CV_CHAIN_APPROX_SIMPLE 仅保存轮廓的拐点信息，把所有轮廓拐点处的点保存入contours等；
+                offset : 所有的轮廓信息相对于原始图像对应点的偏移量, 缺省不设置。
+        · 画出目标轮廓
+            image = cv.drawContours( image, contours, contourIdx, color[, thickness[, lineType[, hierarchy[,maxLevel[, offset]]]]] )
+                image : 用于绘制的输入图像
+                contours : 点的vectors的vector
+                contourIdx : 需要绘制的轮廓的指数 (-1 表示 "all")
+                color : 轮廓的颜色
+                thickness = 1 : 轮廓线的宽度为1
+                lineType = 8 ： 轮廓线的邻域模式('4'邻域 或 '8'邻域)
+                hierarchy = noArray() ：可选 (从 findContours得到)
+                maxLevel = INT_MAX ：轮廓中的最大下降
+                offset = cv::Point() ：(可选) 所有点的偏移
+
+总结：
+    1. 局部阈值法的图像分割基于图像局部的自动阈值化
+    2. 分水岭算法是一类基于区域分割的改进算法，思想可
+    以形象的由漫水上山头来描述
+    3. 基于边缘的图像分割由闭合曲线描述区域，OpenCV
+    中通过findContours函数支持
